@@ -80,7 +80,7 @@ func PostBlock(v message.MixMessage) *message.Reply {
 		OpenID:  v.OpenID,
 	}
 
-	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("接收到你的表白了~")}
+	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("接收到你的表白了~\n<a href='http://114.55.92.2:8002/'>点击查看</a>")}
 }
 
 func GetInvalidBlock() *message.Reply {

@@ -117,7 +117,10 @@ func index(ctx *context.Context) {
 				if v.Content == "~!@" {
 					return GetInvalidBlock()
 				}
+
 			}
+
+			return newTextMessage("没有对应的指令，请点击下方指示回复\n\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=查看表白'>查看最新表白~</a>\n 想要表白回复To + 表白内容。例如：To 最后一次表白ZFQ小姐姐了，😭😢")
 
 			//图片消息
 		case message.MsgTypeImage:
