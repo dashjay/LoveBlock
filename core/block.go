@@ -48,8 +48,8 @@ func (b *Block) NewBIMFromBlock() BlockInMongo {
 	return BlockInMongo{
 		Timestamp:     b.Timestamp,
 		Data:          string(b.Data),
-		PrevBlockHash: string(b.PrevBlockHash),
-		Hash:          string(b.Hash),
+		PrevBlockHash: string(Base58Encode(b.PrevBlockHash)),
+		Hash:          string(Base58Encode(b.Hash)),
 		OpenID:        b.OpenID,
 	}
 }
