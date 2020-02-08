@@ -32,7 +32,7 @@ func NewBlock(data string, prevBlockHash []byte, OpenID string) *Block {
 
 // NewGenesisBlock creates and returns genesis Block
 func NewGenesisBlock() *Block {
-	return NewBlock("我ZWJ永远爱ZFQ", []byte{}, "I Love You")
+	return NewBlock("我ZWJ永远爱ZFQ", []byte("I Love You"), "")
 }
 
 type BlockInMongo struct {
