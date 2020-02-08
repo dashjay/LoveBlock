@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"strconv"
 	"time"
 )
@@ -49,8 +48,8 @@ func (b *Block) NewBIMFromBlock() BlockInMongo {
 	return BlockInMongo{
 		Timestamp:     b.Timestamp,
 		Data:          string(b.Data),
-		PrevBlockHash: hex.EncodeToString(b.PrevBlockHash),
-		Hash:          hex.EncodeToString(b.Hash),
+		PrevBlockHash: string(b.PrevBlockHash),
+		Hash:          string(b.Hash),
 		OpenID:        b.OpenID,
 	}
 }
