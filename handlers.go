@@ -47,7 +47,7 @@ func GetTargetBlock(v message.MixMessage) *message.Reply {
 	err := con.Find(bson.M{"prev_block_hash": temp[1]}).One(&b)
 
 	if err != nil {
-		return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("表白不存在")}
+		return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("可能这是最后一条表白，或者有表白被人篡改了。")}
 	}
 
 	str := "内容" + b.Data + fmt.Sprintf("\n\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=getnext %s'>点击获取下一跳表白</a>", b.Hash)
