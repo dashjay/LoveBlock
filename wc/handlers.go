@@ -3,7 +3,6 @@ package wc
 import (
 	"fmt"
 	"github.com/astaxie/beego/context"
-	"github.com/kataras/iris/v12"
 	"github.com/silenceper/wechat/message"
 	"gopkg.in/mgo.v2/bson"
 	"main/MQ"
@@ -143,8 +142,8 @@ func Get(ctx *context.Context) {
 		for _, s := range global {
 			if s.Hash == k.Hash {
 				// 没有更新的表白
-
-				ctx.Output.JSON(iris.Map{"status": 1, "content": global}, false, false)
+				var res = map[string]interface{}{"status": 1, "content": global}
+				ctx.Output.JSON(res, false, false)
 				return
 			}
 		}
@@ -163,7 +162,7 @@ func Get(ctx *context.Context) {
 	con.Find(nil).Sort("-timestamp").Limit(20).All(&global)
 	lock = false
 
-	ctx.Output.JSON(iris.Map{"status": 1, "content": global}, false, false)
+	ctx.Output.JSON(map[string]interface{}{"status": 1, "content": global}, false, false)
 	return
 }
 
@@ -172,7 +171,7 @@ func LoadMore(ctx *context.Context) {
 	hash := ctx.Input.Query("hash")
 
 	if hash == "" {
-		ctx.Output.JSON(iris.Map{"status": 0, "content": nil}, false, false)
+		ctx.Output.JSON(map[string]interface{}{"status": 0, "content": nil}, false, false)
 		return
 	}
 
@@ -195,7 +194,7 @@ func LoadMore(ctx *context.Context) {
 		res = append(res, temp)
 		i--
 	}
-	ctx.Output.JSON(iris.Map{"status": 0, "content": res}, false, false)
+	ctx.Output.JSON(map[string]interface{}{"status": 0, "content": res}, false, false)
 
 }
 

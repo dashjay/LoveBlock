@@ -1,8 +1,8 @@
 package database
 
 import (
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
+	"log"
 	"main/env"
 	"time"
 )

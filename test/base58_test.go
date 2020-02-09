@@ -2,12 +2,11 @@ package test
 
 import (
 	"encoding/hex"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"main/blocks"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestBase58(t *testing.T) {

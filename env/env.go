@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/joho/godotenv"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
