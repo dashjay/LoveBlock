@@ -56,33 +56,33 @@ func GetTargetBlock(v message.MixMessage) *message.Reply {
 	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText(str)}
 }
 
-func PostBlock(v message.MixMessage) *message.Reply {
+func PostBlock(content, oid string) *message.Reply {
 
 	var f = filter.GetFilter()
 	f.UpdateNoisePattern(`\*`)
-	if b, _ := f.Validate(v.Content); !b {
+	if b, _ := f.Validate(content); !b {
 		MQ.InvalidChan <- MQ.MessageQueue{
-			Content: v.Content,
-			OpenID:  v.OpenID,
+			Content: content,
+			OpenID:  oid,
 		}
-		return newTextMessage("你的表述中包含敏感词,不能立刻显示,服务器正在处理，请稍后查看")
+		return newTextMessage("小新已经收到了你充满爱意的表白啦，但是你的表述中包含敏感词，不能立刻显示，服务器正在处理，请稍后查看\n<a href='http://114.55.92.2:8002/'>点击查看最新区块</a>")
 	}
 
 	f.UpdateNoisePattern(`x`)
-	if b, _ := f.Validate(v.Content); !b {
+	if b, _ := f.Validate(content); !b {
 		MQ.InvalidChan <- MQ.MessageQueue{
-			Content: v.Content,
-			OpenID:  v.OpenID,
+			Content: content,
+			OpenID:  oid,
 		}
-		return newTextMessage(fmt.Sprintf("你的表述中包含敏感词,不能立刻显示,服务器正在处理，请稍后查看"))
+		return newTextMessage(fmt.Sprintf("小新已经收到了你充满爱意的表白啦，但是你的表述中包含敏感词，不能立刻显示，服务器正在处理，请稍后查看\n<a href='http://114.55.92.2:8002/'>点击查看最新区块</a>"))
 	}
 
 	MQ.ValidChan <- MQ.MessageQueue{
-		Content: v.Content,
-		OpenID:  v.OpenID,
+		Content: content,
+		OpenID:  oid,
 	}
 
-	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("接收到你的表白了~\n<a href='http://114.55.92.2:8002/'>点击查看</a>")}
+	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("小新已经收到了你充满爱意的表白啦, 后台审核完毕之后将生成区块, 并展示在本日文章中哦。也可以自行点击查看\n<a href='http://114.55.92.2:8002/'>点击查看</a>")}
 }
 
 func GetInvalidBlock() *message.Reply {
@@ -91,19 +91,21 @@ func GetInvalidBlock() *message.Reply {
 	defer ds.Close()
 	con := ds.C("invalid_blocks")
 
-	var b []blocks.BlockInMongo
+	var b []blocks.BlockInMongo = nil
 
 	err := con.Find(nil).Limit(20).All(&b)
 
-	if err != nil {
-		return newTextMessage(fmt.Sprintf("出现错误%s，请检查", err.Error()))
+	if err != nil || len(b) == 0 || b == nil {
+		return newTextMessage("没有待审核的内容")
 	}
 
 	var buf strings.Builder
 
 	for _, k := range b {
+
 		buf.WriteString(k.Data)
 		buf.WriteString(fmt.Sprintf("\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=pass %s'>点击通过</a>\n", k.Hash))
+
 	}
 
 	return newTextMessage(fmt.Sprintf(buf.String()))
@@ -136,7 +138,7 @@ func PassBlock(v message.MixMessage) *message.Reply {
 
 func Get(ctx *context.Context) {
 
-	var k = blocks.GetLastBlock().NewBIMFromBlock()
+	var k = blocks.GetLastBlock().ConvertToBlockInMongo()
 
 	if global != nil {
 		for _, s := range global {

@@ -83,7 +83,8 @@ func (b *BlockInMongo) ConvertToBlock() *Block {
 	}
 }
 
-func (b *Block) NewBIMFromBlock() BlockInMongo {
+// ConvertToBlockInMongo 从Block转化成能存入数据库的的MongoBlock
+func (b *Block) ConvertToBlockInMongo() BlockInMongo {
 
 	return BlockInMongo{
 		Timestamp:     b.Timestamp,

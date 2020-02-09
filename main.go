@@ -11,8 +11,7 @@ import (
 
 func init() {
 
-	// 初始化环境变量
-
+	// 初始化数据库
 	err := database.InitMongoDB()
 	if err != nil {
 		panic(err)
@@ -30,10 +29,11 @@ func init() {
 
 	if err != nil {
 		b := blocks.NewGenesisBlock()
-		con.Insert(b.NewBIMFromBlock())
+
+		con.Insert(b.ConvertToBlockInMongo())
+
 		blocks.SetLastBlock(b)
 	}
-
 	blocks.SetLastBlock(b.ConvertToBlock())
 }
 
@@ -50,7 +50,6 @@ func main() {
 
 	// 两个消息队列
 	go MQ.Lover(&MQ.ValidChan, s1)
-
 	go MQ.InValidLover(&MQ.InvalidChan, s2)
 
 	beego.Any("/", wc.Index)
@@ -66,5 +65,4 @@ func main() {
 	}))
 
 	beego.Run(":8001")
-
 }

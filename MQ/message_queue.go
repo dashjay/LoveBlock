@@ -28,7 +28,7 @@ func Lover(c *chan MessageQueue, s *database.SessionStore) {
 
 				b := blocks.NewBlock(data.Content, blocks.GetLastBlock().Hash, data.OpenID)
 
-				err := s.C("blocks").Insert(b.NewBIMFromBlock())
+				err := s.C("blocks").Insert(b.ConvertToBlockInMongo())
 
 				if err == nil {
 					blocks.SetLastBlock(b)
@@ -46,7 +46,7 @@ func InValidLover(c *chan MessageQueue, s *database.SessionStore) {
 		case data := <-*c:
 			{
 				b := blocks.NewBlock(data.Content, blocks.GetLastBlock().Hash, data.OpenID)
-				_ = s.C("invalid_blocks").Insert(b.NewBIMFromBlock())
+				_ = s.C("invalid_blocks").Insert(b.ConvertToBlockInMongo())
 			}
 		}
 	}

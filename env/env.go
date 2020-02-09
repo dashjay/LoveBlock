@@ -21,8 +21,6 @@ var (
 
 	// Config For Mysql
 
-	SOCKETPORT string
-
 	//MongoDB config
 	MongoDBHost      string
 	MongoDBUser      string
@@ -30,14 +28,14 @@ var (
 	MongoDBTimeOut   int
 	MongoDBPoolLimit int
 	MongoDB          string
-
+	
 	AppID     string
 	AppSecret string
 )
 
 func parse() {
 	Port = getDefault("PORT", "8080")
-	SOCKETPORT = getDefault("SOCKETPORT", "8081")
+
 	// Config For MongoDB
 	MongoDBHost = getDefault("MongoDBHost", "127.0.0.1")
 	MongoDBUser = getDefault("MongoDBUser", "")
