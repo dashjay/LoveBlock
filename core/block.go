@@ -43,6 +43,10 @@ type BlockInMongo struct {
 	OpenID        string `json:"open_id" bson:"open_id"`
 }
 
+func (b *BlockInMongo) Formatter() string {
+	return "· 内容：" + b.Data + "\n点击回复或评论（待开发）\n"
+}
+
 func (b *Block) NewBIMFromBlock() BlockInMongo {
 
 	return BlockInMongo{

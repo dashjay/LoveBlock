@@ -194,3 +194,26 @@ func LoadMore(ctx *context.Context) {
 	ctx.Output.JSON(iris.Map{"status": 0, "content": res}, false, false)
 
 }
+
+func SearchBlock(v message.MixMessage) *message.Reply {
+	ds := database.NewSessionStore()
+	defer ds.Close()
+	con := ds.C("blocks")
+
+	temp := strings.Split(v.Content, " ")
+	if len(temp) != 2 {
+		return newTextMessage("搜索请回复：「search 内容」,中间只包含一个空格")
+	}
+	var b []core.BlockInMongo
+	err := con.Find(bson.M{"data": bson.M{"$regexp": temp[1]}}).Limit(15).All(&b)
+	if err != nil {
+		return newTextMessage("没有相关信息，msg_detail:" + err.Error())
+	}
+	var buf strings.Builder
+
+	buf.WriteString("---start---\n")
+	for _, bb := range b {
+		buf.WriteString(bb.Formatter())
+	}
+	return newTextMessage(buf.String())
+}

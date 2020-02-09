@@ -99,17 +99,23 @@ func index(ctx *context.Context) {
 
 			if len(v.Content) > 3 {
 
+				// 表白
 				if strings.Contains(v.Content[0:3], "to") || strings.Contains(v.Content[0:3], "To") {
 					return PostBlock(v)
 				}
+				// 查看表白
 				if strings.Contains(v.Content, "查看表白") {
-
 					return GetOneBlock()
 				}
-				if strings.Contains(v.Content, "getnext") {
+				if strings.Contains(v.Content[0:10], "search") {
+					return SearchBlock(v)
+				}
 
+				// 获取下一条
+				if strings.Contains(v.Content, "getnext") {
 					return GetTargetBlock(v)
 				}
+				// 通过表白
 				if strings.Contains(v.Content, "pass") {
 					return PassBlock(v)
 				}
