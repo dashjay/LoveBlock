@@ -1,11 +1,37 @@
-package core
+package blocks
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"strconv"
+	"sync"
 	"time"
 )
+
+type lastBlock struct {
+	b  *Block
+	mu sync.RWMutex
+}
+
+var lb *lastBlock
+
+func GetLastBlock() *Block {
+	lb.mu.RLock()
+	defer lb.mu.RUnlock()
+	return lb.b
+}
+func SetLastBlock(b *Block) {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	lb.b = b
+}
+
+func init() {
+	lb = &lastBlock{
+		b:  &Block{},
+		mu: sync.RWMutex{},
+	}
+}
 
 // Block keeps block headers
 type Block struct {
@@ -45,6 +71,16 @@ type BlockInMongo struct {
 
 func (b *BlockInMongo) Formatter() string {
 	return "· 内容：" + b.Data + "\n点击回复或评论（待开发）\n"
+}
+
+func (b *BlockInMongo) ConvertToBlock() *Block {
+	return &Block{
+		Timestamp:     b.Timestamp,
+		Data:          []byte(b.Data),
+		PrevBlockHash: Base58Decode([]byte(b.PrevBlockHash)),
+		Hash:          Base58Decode([]byte(b.Hash)),
+		OpenID:        b.OpenID,
+	}
 }
 
 func (b *Block) NewBIMFromBlock() BlockInMongo {

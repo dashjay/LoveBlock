@@ -1,4 +1,4 @@
-package main
+package wc
 
 import (
 	"fmt"
@@ -6,14 +6,16 @@ import (
 	"github.com/kataras/iris/v12"
 	"github.com/silenceper/wechat/message"
 	"gopkg.in/mgo.v2/bson"
-	"main/core"
+	"main/MQ"
+	"main/blocks"
 	"main/database"
+	"main/filter"
 	"strings"
 	"time"
 )
 
 var lock = false
-var global []core.BlockInMongo = nil
+var global []blocks.BlockInMongo = nil
 
 func GetOneBlock() *message.Reply {
 
@@ -21,7 +23,7 @@ func GetOneBlock() *message.Reply {
 	defer ds.Close()
 	con := ds.C("blocks")
 
-	var b core.BlockInMongo
+	var b blocks.BlockInMongo
 	err := con.Find(nil).Sort("timestamp").One(&b)
 	if err != nil {
 		return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText(err.Error())}
@@ -42,7 +44,7 @@ func GetTargetBlock(v message.MixMessage) *message.Reply {
 	defer ds.Close()
 	con := ds.C("blocks")
 
-	var b core.BlockInMongo
+	var b blocks.BlockInMongo
 
 	err := con.Find(bson.M{"prev_block_hash": temp[1]}).One(&b)
 
@@ -57,25 +59,26 @@ func GetTargetBlock(v message.MixMessage) *message.Reply {
 
 func PostBlock(v message.MixMessage) *message.Reply {
 
-	filter.UpdateNoisePattern(`\*`)
-	if b, _ := filter.Validate(v.Content); !b {
-		InvalidChan <- MessageQueue{
+	var f = filter.GetFilter()
+	f.UpdateNoisePattern(`\*`)
+	if b, _ := f.Validate(v.Content); !b {
+		MQ.InvalidChan <- MQ.MessageQueue{
 			Content: v.Content,
 			OpenID:  v.OpenID,
 		}
 		return newTextMessage("你的表述中包含敏感词,不能立刻显示,服务器正在处理，请稍后查看")
 	}
 
-	filter.UpdateNoisePattern(`x`)
-	if b, _ := filter.Validate(v.Content); !b {
-		InvalidChan <- MessageQueue{
+	f.UpdateNoisePattern(`x`)
+	if b, _ := f.Validate(v.Content); !b {
+		MQ.InvalidChan <- MQ.MessageQueue{
 			Content: v.Content,
 			OpenID:  v.OpenID,
 		}
 		return newTextMessage(fmt.Sprintf("你的表述中包含敏感词,不能立刻显示,服务器正在处理，请稍后查看"))
 	}
 
-	ValidChan <- MessageQueue{
+	MQ.ValidChan <- MQ.MessageQueue{
 		Content: v.Content,
 		OpenID:  v.OpenID,
 	}
@@ -89,7 +92,7 @@ func GetInvalidBlock() *message.Reply {
 	defer ds.Close()
 	con := ds.C("invalid_blocks")
 
-	var b []core.BlockInMongo
+	var b []blocks.BlockInMongo
 
 	err := con.Find(nil).Limit(20).All(&b)
 
@@ -117,15 +120,16 @@ func PassBlock(v message.MixMessage) *message.Reply {
 	defer ds.Close()
 	con := ds.C("invalid_blocks")
 
-	var b core.BlockInMongo
+	var f = filter.GetFilter()
+	var b blocks.BlockInMongo
 	if err := con.Find(bson.M{"hash": temp[1]}).One(&b); err != nil {
 		return newTextMessage(err.Error())
 	}
 	if err := con.Remove(bson.M{"hash": temp[1]}); err != nil {
 		return newTextMessage(err.Error())
 	}
-	ValidChan <- MessageQueue{
-		Content: filter.Replace(b.Data, '*'),
+	MQ.ValidChan <- MQ.MessageQueue{
+		Content: f.Replace(b.Data, '*'),
 		OpenID:  b.OpenID,
 	}
 	return newTextMessage("通过内容" + b.Data)
@@ -133,7 +137,7 @@ func PassBlock(v message.MixMessage) *message.Reply {
 
 func Get(ctx *context.Context) {
 
-	var k = LastBlock.NewBIMFromBlock()
+	var k = blocks.GetLastBlock().NewBIMFromBlock()
 
 	if global != nil {
 		for _, s := range global {
@@ -176,10 +180,10 @@ func LoadMore(ctx *context.Context) {
 	defer ds.Close()
 	con := ds.C("blocks")
 
-	var temp core.BlockInMongo
+	var temp blocks.BlockInMongo
 
 	temp.Hash = hash
-	var res []core.BlockInMongo
+	var res []blocks.BlockInMongo
 	var i = 20
 	for i > 0 {
 
@@ -204,7 +208,7 @@ func SearchBlock(v message.MixMessage) *message.Reply {
 	if len(temp) != 2 {
 		return newTextMessage("搜索请回复：「search 内容」,中间只包含一个空格")
 	}
-	var b []core.BlockInMongo
+	var b []blocks.BlockInMongo
 	err := con.Find(bson.M{"data": bson.M{"$regexp": temp[1]}}).Limit(15).All(&b)
 	if err != nil {
 		return newTextMessage("没有相关信息，msg_detail:" + err.Error())

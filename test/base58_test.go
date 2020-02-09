@@ -3,7 +3,7 @@ package test
 import (
 	"encoding/hex"
 	"log"
-	"main/core"
+	"main/blocks"
 	"strings"
 	"testing"
 
@@ -17,9 +17,9 @@ func TestBase58(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	encoded := core.Base58Encode(hash)
+	encoded := blocks.Base58Encode(hash)
 	assert.Equal(t, "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", string(encoded))
 
-	decoded := core.Base58Decode([]byte("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"))
+	decoded := blocks.Base58Decode([]byte("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"))
 	assert.Equal(t, strings.ToLower("00010966776006953D5567439E5E39F86A0D273BEED61967F6"), hex.EncodeToString(decoded))
 }

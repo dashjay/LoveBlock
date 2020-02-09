@@ -50,7 +50,7 @@ func parse() {
 	AppSecret = getDefault("AppSecret", "")
 }
 
-func Init() {
+func init() {
 	envFileName := ".env"
 	FlagSet := flag.CommandLine
 	FlagSet.StringVar(&envFileName, "env", envFileName, "the env file which web app will use to extract its environment variables")
