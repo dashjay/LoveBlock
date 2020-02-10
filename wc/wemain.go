@@ -36,88 +36,123 @@ func Index(ctx *context.Context) {
 
 	s := GetWc(ctx)
 
+	fmt.Println(s.Context)
 	s.SetMessageHandler(func(v message.MixMessage) *message.Reply {
 
-		switch v.MsgType {
+		u := GetUser(s.GetOpenID())
 
+		u.UpdateTime()
+
+		if len(u.OpenID) != 28 {
+			return newTextMessage("openid error: " + s.GetOpenID())
+		}
+
+		if u.Mode == NoneMode {
+			return newTextMessage(rOnSubscribe)
+		}
+
+		switch v.MsgType {
 		// if文本消息
 		case message.MsgTypeText:
 
 			// 获取内容长度
 			var length = len(v.Content)
 
-			// 获取openid
-			var oid = s.GetOpenID()
-
 			// OpenidError
-			if len(oid) != 28 {
-				return newTextMessage("openid error: " + s.GetOpenID())
-			}
 
 			switch {
 
 			case length == 1:
 				{
 					switch v.Content {
+
 					case "1":
 						{
-							user := GetUser(oid)
-							user.SetMode(LoveMode)
-							return newTextMessage("成功切换为表白墙模式")
+							u.SetMode(LoveMode)
+							return newTextMessage(rHelpLove)
 						}
 					case "2":
 						{
-							user := GetUser(oid)
-							user.SetMode(ResourcesMode)
-							return newTextMessage("成功切换为资源模式")
+							u.SetMode(ResourcesMode)
+							return newTextMessage("成功切换为资源模式（开发中......）")
+						}
+					case "3":
+						{
+							u.SetMode(NoneMode)
+							return newTextMessage(rOnSubscribe)
 						}
 					}
-					return newTextMessage("其他功能开发中")
 				}
-			case length >= 2:
+
+			case length == 2:
 				{
-					var u = GetUser(oid)
+
+				}
+			case length == 3:
+				{
+					if v.Content == "~!@#" {
+						return GetInvalidBlock()
+					}
+				}
+
+			case length == 4:
+				{
+					if v.Content == "help" {
+
+					}
+				}
+			case length >= 4:
+				{
+
+					if strings.ToLower(v.Content) == "helplove" {
+						return newTextMessage(rHelpLoveMode)
+					}
+
+					if strings.ToLower(v.Content) == "helpres" {
+						return newTextMessage("资源模式帮助")
+					}
 
 					switch u.Mode {
 
 					case PreLoveMode:
 						{
 
-							if v.Content == "Confirm" {
-								if u.CTX[PreLoveMode].(string) == "" {
+							if strings.ToLower(v.Content) == "confirm" {
+
+								c, err := u.GetCTX(PreLoveMode)
+								if err != nil {
+									return newTextMessage("出现异常请重试: " + err.Error())
+								}
+								if c.(string) == "" {
 									return newTextMessage("当前缓冲区为空，请回复内容尝试表白哟")
 								}
-								if len(u.CTX[PreLoveMode].(string)) > 3*520 {
+								if len(c.(string)) > 3*520 {
 									return newTextMessage("当前缓冲区文字超过520个字")
 								}
 								u.SetMode(LoveMode)
-								return PostBlock(u.CTX[PreLoveMode].(string), oid)
+								return PostBlock(u.CTX[PreLoveMode].(string), u.OpenID)
 							}
 
-							if v.Content == "Cancel" {
+							if strings.ToLower(v.Content) == "cancel" {
 								u.CTX[PreLoveMode] = ""
 								u.SetMode(LoveMode)
 								return newTextMessage("「已取消」爱就要大声说出来~！")
 							}
 
-							u.CTX[PreLoveMode] = v.Content
+							_ = u.SetCTX(PreLoveMode, v.Content)
+
 							return newTextMessage(
-								"确定表白的内容为：\n\n" + v.Content + "\n\n  吗？\n " +
+								"确定表白的内容为：\n\n" + v.Content + "\n\n吗？\n " +
 									UrlButton("Cancel", "取消表白") + "\t " +
 									UrlButton("Confirm", "确定发送"))
 						}
 					case LoveMode:
 						{
 
-							if v.Content == "~!@#" {
-								return GetInvalidBlock()
-							}
-
 							if v.Content == "表白" {
 								u.SetMode(PreLoveMode)
-								return newTextMessage("请直接回复积极正向的表白(520字内), 寻人或求偶信息 或 \n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=取消表白'>点我取消表白</a>")
+								return newTextMessage("请直接回复积极正向的表白(520字内), 寻人或求偶信息 或<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=Cancel'>点我取消表白</a> 或回复[cancel]取消")
 							}
-
 							// 查看表白
 							if strings.Contains(v.Content, "查看表白") {
 								return GetOneBlock()
@@ -130,23 +165,32 @@ func Index(ctx *context.Context) {
 							if strings.Contains(v.Content, "getnext") {
 								return GetTargetBlock(v)
 							}
+
+							if strings.Contains(v.Content[0:4], "like") {
+								return AddLike(v, u.OpenID)
+							}
+
+							if strings.Contains(v.Content[0:5], "reply") {
+
+							}
+
 							if strings.Contains(v.Content[0:6], "search") {
 								return SearchBlock(v)
 							}
+
+							if strings.Contains(v.Content[0:6], "random") {
+								return RandomBlock(v)
+							}
+
 						}
 					case ResourcesMode:
 						{
 
 						}
-					case NoneMode:
-						{
-							return newTextMessage("帮助信息")
-						}
-
 					}
 
 				}
-				return newTextMessage("没有对应的指令，请点击下方指示回复\n\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=查看表白'>查看最新表白~</a>\n 想要表白回复To + 表白内容。例如：To 最后一次表白ZFQ小姐姐了，😭😢")
+				return newTextMessage(rOnSubscribe)
 
 				//	//图片消息
 				//case message.MsgTypeImage:
@@ -154,22 +198,6 @@ func Index(ctx *context.Context) {
 				//
 				//	//语音消息
 				//case message.MsgTypeVoice:
-				//	//do something
-				//
-				//	//视频消息
-				//case message.MsgTypeVideo:
-				//	//do something
-				//
-				//	//小视频消息
-				//case message.MsgTypeShortVideo:
-				//	//do something
-				//
-				//	//地理位置消息
-				//case message.MsgTypeLocation:
-				//	//do something
-				//
-				//	//链接消息
-				//case message.MsgTypeLink:
 				//	//do something
 			}
 		//事件推送消息
@@ -184,11 +212,9 @@ func Index(ctx *context.Context) {
 			//取消订阅
 			case message.EventUnsubscribe:
 
-				oid := s.GetOpenID()
-				u := GetUser(oid)
 				defer func() {
 					_ = session.GetDb().Update(func(tx *bolt.Tx) error {
-						b := tx.Bucket([]byte(session.DBUser))
+						b := tx.Bucket(session.DBUser)
 
 						ub, e := u.MarshalJSON()
 						if e != nil {
@@ -200,73 +226,31 @@ func Index(ctx *context.Context) {
 							return e
 						}
 
-						fmt.Println(u.OpenID, "取消订阅：已经存入boltdb并且从map中删除")
+						//fmt.Println(u.OpenID, "取消订阅：已经存入boltdb并且从map中删除")
 						delete(Hub, u.OpenID)
 						return nil
 					})
 				}()
-				//	//用户已经关注公众号，则微信会将带场景值扫描事件推送给开发者
-				//case message.EventScan:
-				//	//do something
-				//
-				//	// 上报地理位置事件
-				//case message.EventLocation:
-				//	//do something
-				//
-				//	// 点击菜单拉取消息时的事件推送
-				//case message.EventClick:
-				//	//do something
-				//
-				//	// 点击菜单跳转链接时的事件推送
-				//case message.EventView:
-				//	//do something
-				//
-				//	// 扫码推事件的事件推送
-				//case message.EventScancodePush:
-				//	//do something
-				//
-				//	// 扫码推事件且弹出“消息接收中”提示框的事件推送
-				//case message.EventScancodeWaitmsg:
-				//	//do something
-				//
-				//	// 弹出系统拍照发图的事件推送
-				//case message.EventPicSysphoto:
-				//	//do something
-				//
-				//	// 弹出拍照或者相册发图的事件推送
-				//case message.EventPicPhotoOrAlbum:
-				//	//do something
-				//
-				//	// 弹出微信相册发图器的事件推送
-				//case message.EventPicWeixin:
-				//	//do something
-				//
-				//	// 弹出地理位置选择器的事件推送
-				//case message.EventLocationSelect:
-				//	//do something
-				//
 			}
+
 		}
-		return &message.Reply{MsgType: message.MsgTypeText, MsgData: "unknown message"}
+
+		return newTextMessage(rOnSubscribe)
 	})
 
 	//处理消息接收以及回复
 	err := s.Serve()
 
 	if err != nil {
-
 		fmt.Println(err)
-
 		return
 	}
-
 	//createButton(wc)
 
 	//发送回复的消息
 	s.Send()
-
 }
 
 func UrlButton(msg, title string) string {
-	return fmt.Sprintf("<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=%s'>%s</a", msg, title)
+	return fmt.Sprintf("<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=%s'>%s</a>", msg, title)
 }

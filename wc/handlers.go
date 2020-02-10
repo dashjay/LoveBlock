@@ -3,12 +3,14 @@ package wc
 import (
 	"fmt"
 	"github.com/astaxie/beego/context"
+	ai "github.com/night-codes/mgo-ai"
 	"github.com/silenceper/wechat/message"
 	"gopkg.in/mgo.v2/bson"
 	"main/MQ"
 	"main/blocks"
 	"main/database"
 	"main/filter"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,7 +22,7 @@ func GetOneBlock() *message.Reply {
 
 	ds := database.NewSessionStore()
 	defer ds.Close()
-	con := ds.C("blocks")
+	con := ds.C(database.DBBlocks)
 
 	var b blocks.BlockInMongo
 	err := con.Find(nil).Sort("timestamp").One(&b)
@@ -65,7 +67,7 @@ func PostBlock(content, oid string) *message.Reply {
 			Content: content,
 			OpenID:  oid,
 		}
-		return newTextMessage("小新已经收到了你充满爱意的表白啦，但是你的表述中包含敏感词，不能立刻显示，服务器正在处理，请稍后查看\n<a href='http://114.55.92.2:8002/'>点击查看最新区块</a>")
+		return newTextMessage(rReceiveLoveInNormal)
 	}
 
 	f.UpdateNoisePattern(`x`)
@@ -74,7 +76,7 @@ func PostBlock(content, oid string) *message.Reply {
 			Content: content,
 			OpenID:  oid,
 		}
-		return newTextMessage(fmt.Sprintf("小新已经收到了你充满爱意的表白啦，但是你的表述中包含敏感词，不能立刻显示，服务器正在处理，请稍后查看\n<a href='http://114.55.92.2:8002/'>点击查看最新区块</a>"))
+		return newTextMessage(rReceiveLoveInNormal)
 	}
 
 	MQ.ValidChan <- MQ.MessageQueue{
@@ -82,7 +84,7 @@ func PostBlock(content, oid string) *message.Reply {
 		OpenID:  oid,
 	}
 
-	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText("小新已经收到了你充满爱意的表白啦, 后台审核完毕之后将生成区块, 并展示在本日文章中哦。也可以自行点击查看\n<a href='http://114.55.92.2:8002/'>点击查看</a>")}
+	return newTextMessage(rReceiveLoveNormal)
 }
 
 func GetInvalidBlock() *message.Reply {
@@ -136,6 +138,107 @@ func PassBlock(v message.MixMessage) *message.Reply {
 	return newTextMessage("通过内容" + b.Data)
 }
 
+func SearchBlock(v message.MixMessage) *message.Reply {
+	temp := strings.Split(v.Content, " ")
+	if len(temp) != 2 {
+		return newTextMessage("搜索请回复：「search 内容」,中间只包含一个空格")
+	}
+	ds := database.NewSessionStore()
+	defer ds.Close()
+	con := ds.C("blocks")
+	var b []blocks.BlockInMongo
+	err := con.Find(bson.M{"data": bson.RegEx{Pattern: temp[1], Options: "$i"}}).Limit(15).All(&b)
+	if err != nil {
+		return newTextMessage("没有相关信息，msg_detail:" + err.Error())
+	}
+
+	var buf strings.Builder
+	buf.WriteString("---start---\n")
+	for _, bb := range b {
+		buf.WriteString(bb.Formatter())
+	}
+	buf.WriteString("---end---")
+
+	return newTextMessage(buf.String())
+}
+func RandomBlock(v message.MixMessage) *message.Reply {
+	// 处理获得数字
+	temp := strings.Split(v.Content, " ")
+	if len(temp) != 2 {
+		return newTextMessage("搜索请回复：「random 数字」,中间只包含一个空格，数字小于20")
+	}
+	size, err := strconv.Atoi(temp[1])
+	if err != nil {
+		return newTextMessage("搜索请回复：「random 数字」,中间只包含一个空格，数字小于20")
+	}
+
+	// 回去block
+	b := GetRandomBlock(size)
+	var buf strings.Builder
+
+	buf.WriteString("---start---\n")
+	for _, bb := range b {
+		buf.WriteString(bb.Formatter())
+	}
+	buf.WriteString("---end---")
+
+	return newTextMessage(buf.String())
+}
+
+func AddLike(v message.MixMessage, oid string) *message.Reply {
+	// 将指令split成两个部分
+	temp := strings.Split(v.Content, " ")
+	if len(temp) != 2 {
+		return newTextMessage("点赞出错，请稍后重试")
+	}
+
+	i, err := strconv.Atoi(temp[1])
+
+	if err != nil {
+		return newTextMessage("指令失效，请回复[like 1]点赞表白，1代表编号。")
+	}
+
+	// 创建数据库连接
+	ds := database.NewSessionStore()
+	defer ds.Close()
+
+	// 连接counter
+	ai.Connect(ds.C(database.DBCounters))
+
+	// 切换为Block
+	con := ds.C(database.DBBlocks)
+	var b blocks.BlockInMongo
+	err = con.Find(bson.M{"id": i}).One(&b)
+	if err != nil {
+		return newTextMessage("点赞第" + temp[1] + "条表白失败，失败原因" + err.Error())
+	}
+
+	// 切换为object
+	con = ds.C(database.DBObjects)
+	var selecter = bson.M{"bid": b.ID, "open_id": oid, "type": "like"}
+	if c, err := con.Find(selecter).Count(); err != nil {
+		return newTextMessage("点赞第" + temp[1] + "条表白失败，失败原因" + err.Error())
+	} else {
+		if c != 0 {
+			return newTextMessage("您已经表白过该条表白~\n点击查看更多表白")
+		}
+	}
+
+	o := blocks.Object{
+		BID:       b.ID,
+		Type:      "like",
+		ID:        ai.Next("like"),
+		OpenID:    oid,
+		TimeStamp: time.Now().Unix(),
+	}
+
+	con.Insert(&o)
+
+	n, _ := con.Find(bson.M{"bid": b.ID, "type": "like"}).Count()
+
+	return newTextMessage(fmt.Sprintf("点赞成功，当前共有%d个用户点赞", n))
+}
+
 func Get(ctx *context.Context) {
 
 	var k = blocks.GetLastBlock().ConvertToBlockInMongo()
@@ -144,7 +247,7 @@ func Get(ctx *context.Context) {
 		for _, s := range global {
 			if s.Hash == k.Hash {
 				// 没有更新的表白
-				var res = map[string]interface{}{"status": 1, "content": global}
+				var res = map[string]interface{}{"status": 0, "content": global}
 				ctx.Output.JSON(res, false, false)
 				return
 			}
@@ -200,25 +303,34 @@ func LoadMore(ctx *context.Context) {
 
 }
 
-func SearchBlock(v message.MixMessage) *message.Reply {
+func Random(ctx *context.Context) {
+
+	size := ctx.Input.Query("size")
+	if size == "" {
+		ctx.Output.JSON(map[string]interface{}{"status": 0}, false, false)
+		return
+	}
+	sint, err := strconv.Atoi(size)
+	if err != nil {
+		ctx.Output.JSON(map[string]interface{}{"status": 0, "msg": err.Error()}, false, false)
+		return
+	}
+
+	if sint <= 0 {
+		ctx.Output.JSON(map[string]interface{}{"status": 0, "msg": "size should be  bigger than 0"}, false, false)
+		return
+	}
+
+	r := GetRandomBlock(sint)
+
+	ctx.Output.JSON(r, false, false)
+}
+
+func GetRandomBlock(sint int) []blocks.BlockInMongo {
 	ds := database.NewSessionStore()
 	defer ds.Close()
-	con := ds.C("blocks")
-
-	temp := strings.Split(v.Content, " ")
-	if len(temp) != 2 {
-		return newTextMessage("搜索请回复：「search 内容」,中间只包含一个空格")
-	}
+	con := ds.C(database.DBBlocks)
 	var b []blocks.BlockInMongo
-	err := con.Find(bson.M{"data": bson.M{"$regexp": temp[1]}}).Limit(15).All(&b)
-	if err != nil {
-		return newTextMessage("没有相关信息，msg_detail:" + err.Error())
-	}
-	var buf strings.Builder
-
-	buf.WriteString("---start---\n")
-	for _, bb := range b {
-		buf.WriteString(bb.Formatter())
-	}
-	return newTextMessage(buf.String())
+	_ = con.Pipe([]bson.D{{{"$sample", bson.D{{"size", sint}}}}}).All(&b)
+	return b
 }

@@ -10,7 +10,7 @@ import (
 var session *mgo.Session
 
 // InitMongoDB 初始化一个MongoDB会话，并持有该链接
-func InitMongoDB() error {
+func init() {
 
 	dialInfo := &mgo.DialInfo{
 		Addrs:     []string{env.MongoDBHost},
@@ -24,12 +24,9 @@ func InitMongoDB() error {
 	var err error
 	session, err = mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		log.Println(err.Error())
-		return err
+		log.Panic(err)
 	}
-
 	session.SetMode(mgo.Monotonic, true)
-	return nil
 }
 
 type SessionStore struct {

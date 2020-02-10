@@ -3,19 +3,13 @@ package main
 import (
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/plugins/cors"
-	"main/MQ"
+	ai "github.com/night-codes/mgo-ai"
 	"main/blocks"
 	"main/database"
 	"main/wc"
 )
 
 func init() {
-
-	// 初始化数据库
-	err := database.InitMongoDB()
-	if err != nil {
-		panic(err)
-	}
 
 	ds := database.NewSessionStore()
 	defer ds.Close()
@@ -25,35 +19,30 @@ func init() {
 
 	var b blocks.BlockInMongo
 
-	err = con.Find(nil).Sort("-timestamp").One(&b)
+	err := con.Find(nil).Sort("-timestamp").One(&b)
+
+	ai.Connect(ds.C(database.DBCounters))
 
 	if err != nil {
 		b := blocks.NewGenesisBlock()
 
-		con.Insert(b.ConvertToBlockInMongo())
+		mb := b.ConvertToBlockInMongo()
+
+		mb.ID = ai.Next(database.AIBlockID)
+
+		con.Insert(mb)
 
 		blocks.SetLastBlock(b)
+	} else {
+		blocks.SetLastBlock(b.ConvertToBlock())
 	}
-	blocks.SetLastBlock(b.ConvertToBlock())
 }
 
 func main() {
 
-	// 创建两个Session
-	s1 := database.NewSessionStore()
-	s2 := database.NewSessionStore()
-
-	defer func() {
-		s1.Close()
-		s2.Close()
-	}()
-
-	// 两个消息队列
-	go MQ.Lover(&MQ.ValidChan, s1)
-	go MQ.InValidLover(&MQ.InvalidChan, s2)
-
 	beego.Any("/", wc.Index)
 	beego.Any("/get", wc.Get)
+	beego.Any("/random", wc.Random)
 	beego.Any("/loadmore", wc.LoadMore)
 
 	beego.InsertFilter("*", beego.BeforeRouter, cors.Allow(&cors.Options{

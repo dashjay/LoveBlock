@@ -10,6 +10,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.0
+	github.com/night-codes/mgo-ai v0.0.0-20190929120331-0ce697f507bb
 	github.com/shiena/ansicolor v0.0.0-20151119151921-a422bbe96644 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/silenceper/wechat v2.0.1+incompatible

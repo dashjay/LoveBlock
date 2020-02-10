@@ -5,8 +5,8 @@ import (
 	"log"
 )
 
-const (
-	DBUser = "user"
+var (
+	DBUser = []byte("user")
 )
 
 var db *bolt.DB
@@ -18,10 +18,10 @@ func init() {
 		log.Panic(err)
 	}
 
-	var tables = []string{DBUser}
+	var tables = [][]byte{DBUser}
 	err = db.Update(func(tx *bolt.Tx) error {
 		for _, l := range tables {
-			_, err := tx.CreateBucketIfNotExists([]byte(l))
+			_, err := tx.CreateBucketIfNotExists(l)
 			if err != nil {
 				panic(err)
 			}

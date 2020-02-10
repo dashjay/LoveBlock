@@ -1,6 +1,7 @@
 package MQ
 
 import (
+	ai "github.com/night-codes/mgo-ai"
 	"main/blocks"
 	"main/database"
 )
@@ -16,9 +17,16 @@ type MessageQueue struct {
 func init() {
 	ValidChan = make(chan MessageQueue, 64)
 	InvalidChan = make(chan MessageQueue, 64)
+
+	// 两个消息队列
+	go Lover(&ValidChan)
+	go InValidLover(&InvalidChan)
 }
 
-func Lover(c *chan MessageQueue, s *database.SessionStore) {
+func Lover(c *chan MessageQueue) {
+
+	s := database.NewSessionStore()
+
 	for {
 
 		select {
@@ -28,17 +36,26 @@ func Lover(c *chan MessageQueue, s *database.SessionStore) {
 
 				b := blocks.NewBlock(data.Content, blocks.GetLastBlock().Hash, data.OpenID)
 
-				err := s.C("blocks").Insert(b.ConvertToBlockInMongo())
+				ai.Connect(s.C(database.DBCounters))
+
+				mb := b.ConvertToBlockInMongo()
+
+				mb.ID = ai.Next(database.AIBlockID)
+
+				err := s.C("blocks").Insert(&mb)
 
 				if err == nil {
 					blocks.SetLastBlock(b)
+				} else {
+					panic(err)
 				}
 			}
 		}
 	}
 }
 
-func InValidLover(c *chan MessageQueue, s *database.SessionStore) {
+func InValidLover(c *chan MessageQueue) {
+	s := database.NewSessionStore()
 	for {
 
 		select {

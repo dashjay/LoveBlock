@@ -3,7 +3,9 @@ package blocks
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"strconv"
+
 	"sync"
 	"time"
 )
@@ -67,10 +69,12 @@ type BlockInMongo struct {
 	PrevBlockHash string `json:"prev_block_hash" bson:"prev_block_hash"`
 	Hash          string `json:"hash" bson:"hash"`
 	OpenID        string `json:"open_id" bson:"open_id"`
+	ID            uint64 `json:"id" bson:"id"`
 }
 
 func (b *BlockInMongo) Formatter() string {
-	return "· 内容：" + b.Data + "\n点击回复或评论（待开发）\n"
+
+	return "- 内容：" + b.Data + fmt.Sprintf("\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=reply %d'>回复该表白</a>\t<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=like %d'>点个赞❤️</a>\n\n", b.ID, b.ID)
 }
 
 func (b *BlockInMongo) ConvertToBlock() *Block {
