@@ -47,10 +47,6 @@ func Index(ctx *context.Context) {
 			return newTextMessage("openid error: " + s.GetOpenID())
 		}
 
-		if u.Mode == NoneMode {
-			return newTextMessage(rOnSubscribe)
-		}
-
 		switch v.MsgType {
 		// if文本消息
 		case message.MsgTypeText:
@@ -97,18 +93,20 @@ func Index(ctx *context.Context) {
 
 			case length == 4:
 				{
-					if v.Content == "help" {
+					if v.Content == "帮助" {
 
 					}
 				}
 			case length >= 4:
 				{
 
-					if strings.ToLower(v.Content) == "helplove" {
+					fmt.Println(v.Content)
+					if v.Content == "表白帮助" {
+
 						return newTextMessage(rHelpLoveMode)
 					}
 
-					if strings.ToLower(v.Content) == "helpres" {
+					if v.Content == "资源帮助" {
 						return newTextMessage("资源模式帮助")
 					}
 
@@ -117,7 +115,7 @@ func Index(ctx *context.Context) {
 					case PreLoveMode:
 						{
 
-							if strings.ToLower(v.Content) == "confirm" {
+							if v.Content == "确定" {
 
 								c, err := u.GetCTX(PreLoveMode)
 								if err != nil {
@@ -133,7 +131,7 @@ func Index(ctx *context.Context) {
 								return PostBlock(u.CTX[PreLoveMode].(string), u.OpenID)
 							}
 
-							if strings.ToLower(v.Content) == "cancel" {
+							if v.Content == "取消" {
 								u.CTX[PreLoveMode] = ""
 								u.SetMode(LoveMode)
 								return newTextMessage("「已取消」爱就要大声说出来~！")
@@ -143,15 +141,15 @@ func Index(ctx *context.Context) {
 
 							return newTextMessage(
 								"确定表白的内容为：\n\n" + v.Content + "\n\n吗？\n " +
-									UrlButton("Cancel", "取消表白") + "\t " +
-									UrlButton("Confirm", "确定发送"))
+									UrlButton("取消", "取消表白") + "\t " +
+									UrlButton("确定", "确定发送"))
 						}
 					case LoveMode:
 						{
 
 							if v.Content == "表白" {
 								u.SetMode(PreLoveMode)
-								return newTextMessage("请直接回复积极正向的表白(520字内), 寻人或求偶信息 或<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=Cancel'>点我取消表白</a> 或回复[cancel]取消")
+								return newTextMessage("请直接回复积极正向的表白(520字内), 寻人或求偶信息 或<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=取消'>点我取消表白</a> 或回复[取消]以取消")
 							}
 							// 查看表白
 							if strings.Contains(v.Content, "查看表白") {

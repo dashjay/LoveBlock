@@ -1,7 +1,7 @@
 package wc
 
 const (
-	rOnSubscribe = "欢迎订阅「贝壳新青年」，这里是几个无聊的人一起运营的一个名叫「新青年」小玩具，提供大家各种小发明创造\n\n1.表白墙 <a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=helplove'>查看如何表白</a>\n\n2.课程资源分享<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=helpres'>如何获取资源</a>"
+	rOnSubscribe = "欢迎订阅「贝壳新青年」，这里是几个无聊的人一起运营的一个名叫「新青年」小玩具，提供大家各种小发明创造\n\n1.表白墙 <a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=表白帮助'>查看如何表白</a>\n\n2.课程资源分享<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=资源帮助'>如何获取资源</a>"
 
 	rHelpLoveMode = "「表白模式」\n欢迎使用区块表白墙\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=1'>点我进入表白模式</a>，并且得到表白墙的使用方式"
 
