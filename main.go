@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-
+	// 初始化数据库
 	ds := database.NewSessionStore()
 	defer ds.Close()
 	con := ds.C("blocks")
@@ -25,13 +25,9 @@ func init() {
 
 	if err != nil {
 		b := blocks.NewGenesisBlock()
-
 		mb := b.ConvertToBlockInMongo()
-
 		mb.ID = ai.Next(database.AIBlockID)
-
 		con.Insert(mb)
-
 		blocks.SetLastBlock(b)
 	} else {
 		blocks.SetLastBlock(b.ConvertToBlock())
@@ -40,7 +36,8 @@ func init() {
 
 func main() {
 
-	beego.Any("/", wc.Index)
+	beego.Any("/", wc.Main)
+	beego.Any("/valid", wc.Valid)
 	beego.Any("/get", wc.Get)
 	beego.Any("/random", wc.Random)
 	beego.Any("/loadmore", wc.LoadMore)

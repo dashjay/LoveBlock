@@ -72,9 +72,24 @@ type BlockInMongo struct {
 	ID            uint64 `json:"id" bson:"id"`
 }
 
+type BlockFront struct {
+	BlockInMongo
+	LikeNum     int
+	ReplyNum    int
+	ReplyTarget string
+}
+
+func (b BlockInMongo) ConvertToBFront() BlockFront {
+	return BlockFront{
+		BlockInMongo: b,
+		LikeNum:      0,
+		ReplyNum:     0,
+	}
+}
+
 func (b *BlockInMongo) Formatter() string {
 
-	return "- 内容：" + b.Data + fmt.Sprintf("\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=reply %d'>回复该表白</a>\t<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=like %d'>点个赞❤️</a>\n\n", b.ID, b.ID)
+	return fmt.Sprintf("#%d 内容：", b.ID) + b.Data + fmt.Sprintf("\n<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=reply %d'>回复该表白❤</a>\t<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=like %d'>点个赞️🌟</a>\n\n", b.ID, b.ID)
 }
 
 func (b *BlockInMongo) ConvertToBlock() *Block {

@@ -3,252 +3,124 @@ package wc
 import (
 	"fmt"
 	"github.com/astaxie/beego/context"
-	"github.com/boltdb/bolt"
-	"github.com/silenceper/wechat"
-	"github.com/silenceper/wechat/message"
-	"github.com/silenceper/wechat/server"
-	"main/env"
-	"main/session"
-	"strings"
+	"github.com/golang/protobuf/proto"
+	"main/protos"
 )
 
-var wc *wechat.Wechat
-
-func init() {
-
-	//配置微信参数
-	config := &wechat.Config{
-		AppID:     env.AppID,
-		AppSecret: env.AppSecret,
-		Token:     "wechat",
+func Valid(ctx *context.Context) {
+	prebm := GetInvalidBlock()
+	mb, _ := proto.Marshal(&prebm)
+	ctx.ResponseWriter.Write(mb)
+	return
+}
+func Main(ctx *context.Context) {
+	res := Index(ctx)
+	prebm := protos.BaseMessage{
+		Type: "text",
+		Data: []byte(res),
 	}
-	wc = wechat.NewWechat(config)
-}
-func GetWc(ctx *context.Context) *server.Server {
-	return wc.GetServer(ctx.Request, ctx.ResponseWriter)
-}
-
-func newTextMessage(s string) *message.Reply {
-	return &message.Reply{MsgType: message.MsgTypeText, MsgData: message.NewText(s)}
-}
-
-func Index(ctx *context.Context) {
-
-	s := GetWc(ctx)
-
-	fmt.Println(s.Context)
-	s.SetMessageHandler(func(v message.MixMessage) *message.Reply {
-
-		u := GetUser(s.GetOpenID())
-
-		u.UpdateTime()
-
-		if len(u.OpenID) != 28 {
-			return newTextMessage("openid error: " + s.GetOpenID())
-		}
-
-		switch v.MsgType {
-		// if文本消息
-		case message.MsgTypeText:
-
-			// 获取内容长度
-			var length = len(v.Content)
-
-			// OpenidError
-
-			switch {
-
-			case length == 1:
-				{
-					switch v.Content {
-
-					case "1":
-						{
-							u.SetMode(LoveMode)
-							return newTextMessage(rHelpLove)
-						}
-					case "2":
-						{
-							u.SetMode(ResourcesMode)
-							return newTextMessage("成功切换为资源模式（开发中......）")
-						}
-					case "3":
-						{
-							u.SetMode(NoneMode)
-							return newTextMessage(rOnSubscribe)
-						}
-					}
-				}
-
-			case length == 2:
-				{
-
-				}
-			case length == 3:
-				{
-					if v.Content == "~!@#" {
-						return GetInvalidBlock()
-					}
-				}
-
-			case length == 4:
-				{
-					if v.Content == "帮助" {
-
-					}
-				}
-			case length >= 4:
-				{
-
-					fmt.Println(v.Content)
-					if v.Content == "表白帮助" {
-
-						return newTextMessage(rHelpLoveMode)
-					}
-
-					if v.Content == "资源帮助" {
-						return newTextMessage("资源模式帮助")
-					}
-
-					switch u.Mode {
-
-					case PreLoveMode:
-						{
-
-							if v.Content == "确定" {
-
-								c, err := u.GetCTX(PreLoveMode)
-								if err != nil {
-									return newTextMessage("出现异常请重试: " + err.Error())
-								}
-								if c.(string) == "" {
-									return newTextMessage("当前缓冲区为空，请回复内容尝试表白哟")
-								}
-								if len(c.(string)) > 3*520 {
-									return newTextMessage("当前缓冲区文字超过520个字")
-								}
-								u.SetMode(LoveMode)
-								return PostBlock(u.CTX[PreLoveMode].(string), u.OpenID)
-							}
-
-							if v.Content == "取消" {
-								u.CTX[PreLoveMode] = ""
-								u.SetMode(LoveMode)
-								return newTextMessage("「已取消」爱就要大声说出来~！")
-							}
-
-							_ = u.SetCTX(PreLoveMode, v.Content)
-
-							return newTextMessage(
-								"确定表白的内容为：\n\n" + v.Content + "\n\n吗？\n " +
-									UrlButton("取消", "取消表白") + "\t " +
-									UrlButton("确定", "确定发送"))
-						}
-					case LoveMode:
-						{
-
-							if v.Content == "表白" {
-								u.SetMode(PreLoveMode)
-								return newTextMessage("请直接回复积极正向的表白(520字内), 寻人或求偶信息 或<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=取消'>点我取消表白</a> 或回复[取消]以取消")
-							}
-							// 查看表白
-							if strings.Contains(v.Content, "查看表白") {
-								return GetOneBlock()
-							}
-							// 通过表白
-							if strings.Contains(v.Content, "pass") {
-								return PassBlock(v)
-							}
-							// 获取下一条
-							if strings.Contains(v.Content, "getnext") {
-								return GetTargetBlock(v)
-							}
-
-							if strings.Contains(v.Content[0:4], "like") {
-								return AddLike(v, u.OpenID)
-							}
-
-							if strings.Contains(v.Content[0:5], "reply") {
-
-							}
-
-							if strings.Contains(v.Content[0:6], "search") {
-								return SearchBlock(v)
-							}
-
-							if strings.Contains(v.Content[0:6], "random") {
-								return RandomBlock(v)
-							}
-
-						}
-					case ResourcesMode:
-						{
-
-						}
-					}
-
-				}
-				return newTextMessage(rOnSubscribe)
-
-				//	//图片消息
-				//case message.MsgTypeImage:
-				//	//do something
-				//
-				//	//语音消息
-				//case message.MsgTypeVoice:
-				//	//do something
-			}
-		//事件推送消息
-		case message.MsgTypeEvent:
-			switch v.Event {
-			//
-			//EventSubscribe 订阅
-			case message.EventSubscribe:
-
-				return newTextMessage(rOnSubscribe)
-
-			//取消订阅
-			case message.EventUnsubscribe:
-
-				defer func() {
-					_ = session.GetDb().Update(func(tx *bolt.Tx) error {
-						b := tx.Bucket(session.DBUser)
-
-						ub, e := u.MarshalJSON()
-						if e != nil {
-							return e
-						}
-
-						e = b.Put([]byte(u.OpenID), ub)
-						if e != nil {
-							return e
-						}
-
-						//fmt.Println(u.OpenID, "取消订阅：已经存入boltdb并且从map中删除")
-						delete(Hub, u.OpenID)
-						return nil
-					})
-				}()
-			}
-
-		}
-
-		return newTextMessage(rOnSubscribe)
-	})
-
-	//处理消息接收以及回复
-	err := s.Serve()
-
+	bm, err := proto.Marshal(&prebm)
 	if err != nil {
-		fmt.Println(err)
-		return
+		ctx.ResponseWriter.Write([]byte(err.Error()))
+	} else {
+		ctx.ResponseWriter.Write(bm)
 	}
-	//createButton(wc)
-
-	//发送回复的消息
-	s.Send()
 }
 
-func UrlButton(msg, title string) string {
-	return fmt.Sprintf("<a href='weixin://bizmsgmenu?msgmenuid=1&msgmenucontent=%s'>%s</a>", msg, title)
+func Index(ctx *context.Context) string {
+
+	function := ctx.Input.Query("func")
+	switch function {
+
+	case "create":
+		{
+			content := ctx.Input.Query("content")
+			if content == "" {
+				return "表白内容为空"
+				//mb, _ := proto.Marshal(&prebm)
+				//ctx.ResponseWriter.Write(mb)
+				//return
+			}
+			if len(content) > 4*520 {
+				return "当前缓冲区文字超过520个字"
+				//mb, _ := proto.Marshal(&prebm)
+				//ctx.ResponseWriter.Write(mb)
+				//return
+			}
+			// 获取openid
+			oid := ctx.Input.Query("oid")
+			res := PostBlock(content, oid)
+
+			//prebm.Data = []byte(res)
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			return res
+		}
+	case "view":
+		{
+			res := GetOneBlock()
+			return res
+		}
+	case "pass":
+		{
+
+			hash := ctx.Input.Query("hash")
+			res := PassBlock(hash)
+			return res
+			//prebm.Data = []byte(res)
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			//return
+		}
+	case "get_prev":
+		{
+			hash := ctx.Input.Query("hash")
+			res := GetTargetBlock(hash)
+			return res
+			//prebm.Data = []byte(res)
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			//return
+		}
+	case "like":
+		{
+			//获取必要参数id 是表白的编号，oid是用户的openid
+			id := ctx.Input.Query("id")
+			oid := ctx.Input.Query("oid")
+			// 执行点赞
+			res := AddLike(id, oid)
+			return res
+			//prebm.Data = []byte(res)
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			//return
+		}
+	case "reply":
+		{
+			return fmt.Sprintf("回复功能当前正在开发中%s", menu)
+			//prebm.Data = []byte()
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			//return
+		}
+	case "search":
+		{
+
+			keyword := ctx.Input.Query("keyword")
+			res := SearchBlock(keyword)
+			return res
+			//prebm.Data = []byte(res)
+			//mb, _ := proto.Marshal(&prebm)
+			//ctx.ResponseWriter.Write(mb)
+			//return
+		}
+	case "random":
+		{
+			num := ctx.Input.Query("num")
+			res := RandomBlock(num)
+			return res
+		}
+
+	}
+	return ""
 }

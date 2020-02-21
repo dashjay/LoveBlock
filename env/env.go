@@ -1,7 +1,6 @@
 package env
 
 import (
-	"flag"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
@@ -28,9 +27,6 @@ var (
 	MongoDBTimeOut   int
 	MongoDBPoolLimit int
 	MongoDB          string
-	
-	AppID     string
-	AppSecret string
 )
 
 func parse() {
@@ -49,11 +45,11 @@ func parse() {
 }
 
 func init() {
-	envFileName := ".env"
-	FlagSet := flag.CommandLine
-	FlagSet.StringVar(&envFileName, "env", envFileName, "the env file which web app will use to extract its environment variables")
-	_ = flag.CommandLine.Parse(os.Args[1:])
-	Load(envFileName)
+	//envFileName := ".env"
+	//FlagSet := flag.CommandLine
+	//FlagSet.StringVar(&envFileName, "env", envFileName, "the env file which web app will use to extract its environment variables")
+	//_ = flag.CommandLine.Parse(os.Args[1:])
+	//Load(envFileName)
 }
 
 // Load loads environment variables that are being used across the whole app.

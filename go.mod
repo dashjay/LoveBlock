@@ -6,6 +6,7 @@ require (
 	github.com/astaxie/beego v1.12.1
 	github.com/boltdb/bolt v1.3.1
 	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b // indirect
+	github.com/golang/protobuf v1.3.3
 	github.com/importcjj/sensitive v0.0.0-20200106142752-42d1c505be7b
 	github.com/joho/godotenv v1.3.0
 	github.com/kr/pretty v0.2.0 // indirect

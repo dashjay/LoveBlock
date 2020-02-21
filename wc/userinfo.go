@@ -2,11 +2,9 @@ package wc
 
 import (
 	"errors"
-	"fmt"
 	"github.com/boltdb/bolt"
+	"github.com/silenceper/wechat/user"
 	"main/session"
-	"os"
-	"strings"
 	"time"
 )
 
@@ -17,22 +15,34 @@ const (
 	ResourcesMode = "resources"
 )
 
-var Hub map[string]*UserInfo = nil
-
 var UserNotExistsError error
 var UserMarshalFail error
 
 func init() {
-	Hub = make(map[string]*UserInfo, 256)
-	go SwapUserInfo()
 	UserNotExistsError = errors.New("user not exists")
 	UserMarshalFail = errors.New("user marshal fail")
+}
+
+type Info struct {
+	NickName       string  `json:"nick_name" bson:"nick_name"`
+	Sex            int32   `json:"sex" bson:"sex"`
+	City           string  `json:"city" bson:"city"`         // 普洱
+	Country        string  `json:"country" bson:"country"`   // 中国
+	Province       string  `json:"province" bson:"province"` // 云南
+	Language       string  `json:"language" bson:"language"`
+	Headimgurl     string  `json:"headimgurl" bson:"headimgurl"`
+	SubscribeTime  int32   `json:"subscribe_time" bson:"subscribe_time"`
+	UnionID        string  `json:"union_id" bson:"union_id"`
+	GroupID        int32   `json:"group_id" bson:"group_id"`
+	TagidList      []int32 `json:"tagid_list" bson:"tagid_list"`
+	SubscribeScene string  `json:"subscribe_scene" bson:"subscribe_scene"`
 }
 
 type UserInfo struct {
 	Mode            string                 `json:"mode"`
 	OpenID          string                 `json:"open_id"`
 	CTX             map[string]interface{} `json:"ctx" bson:"ctx"`
+	Info            Info                   `json:"info" bson:"info"`
 	LastMessageTime int64                  `json:"last_message_time"`
 }
 
@@ -44,10 +54,8 @@ func (u *UserInfo) SetCTX(key string, value interface{}) error {
 		u.CTX = make(map[string]interface{}, 4)
 	}
 	u.CTX[key] = value
-
 	return nil
 }
-
 func (u *UserInfo) GetCTX(key string) (interface{}, error) {
 	if u == nil {
 		return nil, errors.New("empty pointer")
@@ -62,113 +70,68 @@ func (u *UserInfo) GetCTX(key string) (interface{}, error) {
 func (u *UserInfo) SetOpenID(oid string) {
 	u.OpenID = oid
 }
-
 func (u *UserInfo) SetMode(mode string) {
 	u.Mode = mode
 }
-
 func (u *UserInfo) UpdateTime() {
 	u.LastMessageTime = time.Now().Unix()
 }
-
-func GetUser(oid string) *UserInfo {
+func GetUser(inf *user.Info, oid string) UserInfo {
 	// 查看是否存在于Hub中
-	if _, j := Hub[oid]; !j {
-		//fmt.Println(oid, "不存在")
-		// 当前hub中没有该用户数据
-		// 初始化boltdb
-		db := session.GetDb()
-		var res UserInfo
-		// 从bolt中获取
-		err := db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("user"))
+
+	var res UserInfo
+	// 从bolt中获取
+	err := session.GetDb().View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(session.DBUser)
+		if b != nil {
+			data := b.Get([]byte(oid))
+
+			// 如果用户数据不存在
+			if data == nil {
+				return UserNotExistsError
+			}
+
+			err := res.UnmarshalJSON(data)
+			// 反序列化错误
+			if err != nil {
+				return UserMarshalFail
+			}
+
+			if res.OpenID == "" {
+				return UserNotExistsError
+			}
+
+		} else {
+			panic("bucket not exist")
+		}
+		return nil
+	})
+
+	if err != nil {
+		res := UserInfo{
+			Mode:            NoneMode,
+			OpenID:          oid,
+			CTX:             make(map[string]interface{}, 4), // 每个人预留五个空间应该足够了
+			LastMessageTime: time.Now().Unix(),
+		}
+
+		rb, err := res.MarshalJSON()
+		if err != nil {
+			// 直接返回
+			return res
+		}
+		_ = session.GetDb().Update(func(tx *bolt.Tx) error {
+
+			b := tx.Bucket(session.DBUser)
+
 			if b != nil {
-				data := b.Get([]byte(oid))
-
-				// 如果用户数据不存在
-				if data == nil {
-					return UserNotExistsError
-				}
-
-				err := res.UnmarshalJSON(data)
-				// 反序列化错误
-				if err != nil {
-					return UserMarshalFail
-				}
-
-				if res.OpenID == "" {
-					return UserNotExistsError
-				}
-
-			} else {
-				panic("bucket not exist")
+				b.Put([]byte(oid), rb)
 			}
 			return nil
 		})
 
-		// 用户不存在或者反序列化
-		if err != nil {
-			// 设定新的值
-			Hub[oid] = &UserInfo{
-				Mode:            NoneMode,
-				OpenID:          oid,
-				CTX:             make(map[string]interface{}, 4), // 每个人预留五个空间应该足够了
-				LastMessageTime: time.Now().Unix(),
-			}
-
-			return Hub[oid]
-		}
-		Hub[oid] = &res
-		return &res
+		return res
 	}
 
-	return Hub[oid]
-}
-
-// 实时将内存中的用户信息放入boltdb中
-func SwapUserInfo() {
-
-	var duration = time.Minute * 30
-	// ticker 设定为1分钟
-	t := time.Tick(duration)
-	for {
-		select {
-		case <-t: // 每分钟执行一次
-			{
-				var all = len(Hub) // 所有数量
-				var i = 0
-				var e = 0
-				_ = session.GetDb().Update(func(tx *bolt.Tx) error {
-					b := tx.Bucket(session.DBUser)
-					for k, v := range Hub {
-						pre, err := v.MarshalJSON()
-						if err != nil {
-							// 这里要记录日志
-							e++
-							continue
-						}
-						// 24小时未发言
-						if time.Unix(v.LastMessageTime, 0).Add(time.Hour * 24).Before(time.Now()) {
-
-						}
-						_ = b.Put([]byte(k), pre)
-						i++
-					}
-					return nil
-				})
-
-				var buf strings.Builder
-				buf.WriteString(fmt.Sprintf("-------%s--------\n", time.Now().String()))
-				buf.WriteString(fmt.Sprintf("一共更新了%d条,正常%d条，不正常%d条\n\n", all, i, e))
-				f, err := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-				if err != nil {
-					fmt.Println(buf.String())
-				}
-				f.WriteString(buf.String())
-				f.Close()
-
-				t = time.Tick(duration)
-			}
-		}
-	}
+	return &res
 }
