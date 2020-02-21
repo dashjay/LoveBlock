@@ -39,9 +39,6 @@ func parse() {
 	MongoDBPoolLimit = getIntDefault("MongoDBPoolLimit", 4096)
 	MongoDBTimeOut = getIntDefault("MongoDBTimeOut", 1)
 	MongoDB = getDefault("MongoDB", "test")
-
-	AppID = getDefault("AppID", "")
-	AppSecret = getDefault("AppSecret", "")
 }
 
 func init() {
