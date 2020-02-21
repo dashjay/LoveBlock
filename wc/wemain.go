@@ -49,6 +49,9 @@ func Index(ctx *context.Context) string {
 			}
 			// 获取openid
 			oid := ctx.Input.Query("oid")
+			if oid == "" {
+				return "openid获取失败，请重试。[已通知管理员]"
+			}
 			res := PostBlock(content, oid)
 
 			//prebm.Data = []byte(res)
@@ -72,7 +75,7 @@ func Index(ctx *context.Context) string {
 			//ctx.ResponseWriter.Write(mb)
 			//return
 		}
-	case "get_prev":
+	case "get":
 		{
 			hash := ctx.Input.Query("hash")
 			res := GetTargetBlock(hash)
@@ -122,5 +125,5 @@ func Index(ctx *context.Context) string {
 		}
 
 	}
-	return ""
+	return "没有匹配任何操作"
 }
